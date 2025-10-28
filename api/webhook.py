@@ -3,8 +3,46 @@ import json
 import os
 import urllib.request
 import urllib.error
+import re
 
 class handler(BaseHTTPRequestHandler):
+    def html_to_text(self, html):
+        """Converte HTML in testo leggibile"""
+        # Rimuovi tag HTML comuni mantenendo il contenuto
+        text = html.replace('<br>', '\n')
+        text = text.replace('<br/>', '\n')
+        text = text.replace('<br />', '\n')
+        text = text.replace('</p>', '\n')
+        text = text.replace('</div>', '\n')
+        text = text.replace('</h1>', '\n')
+        text = text.replace('</h2>', '\n')
+        text = text.replace('</h3>', '\n')
+        text = text.replace('<strong>', '**')
+        text = text.replace('</strong>', '**')
+        text = text.replace('<b>', '**')
+        text = text.replace('</b>', '**')
+        text = text.replace('<em>', '_')
+        text = text.replace('</em>', '_')
+        text = text.replace('<i>', '_')
+        text = text.replace('</i>', '_')
+        
+        # Rimuovi tutti i tag HTML rimanenti
+        text = re.sub(r'<[^>]+>', '', text)
+        
+        # Decodifica entità HTML
+        text = text.replace('&nbsp;', ' ')
+        text = text.replace('&amp;', '&')
+        text = text.replace('&lt;', '<')
+        text = text.replace('&gt;', '>')
+        text = text.replace('&quot;', '"')
+        
+        # Pulisci spazi multipli e righe vuote
+        text = re.sub(r' +', ' ', text)
+        text = re.sub(r'\n\s*\n', '\n\n', text)
+        text = text.strip()
+        
+        return text
+    
     def do_POST(self):
         try:
             # Leggi il body della richiesta
@@ -33,6 +71,11 @@ class handler(BaseHTTPRequestHandler):
             # Validazione
             if not to_email or not subject or not message:
                 raise ValueError(f"Missing required fields. to={to_email}, subject={subject}, message={bool(message)}")
+            
+            # Converti HTML in testo se necessario
+            if '<' in message and '>' in message:
+                message = self.html_to_text(message)
+                print(f"Converted HTML to text: {message[:100]}...")
             
             # Prepara i dati per SendGrid
             sendgrid_data = {
